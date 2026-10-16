@@ -5,7 +5,7 @@
 set -euo pipefail
 
 DOMAIN="${DOMAIN:-oticasmundial.allanturing.com}"
-REPO="${REPO:-git@github-sistema:Bemfeitor/sistema-mundial.git}"
+REPO="${REPO:-https://github.com/Bemfeitor/sistema-mundial.git}"
 APP_DIR="${APP_DIR:-/opt/sistema-mundial}"
 KEY=/root/.ssh/sistema_mundial_deploy
 
@@ -18,7 +18,11 @@ if ! command -v docker >/dev/null 2>&1; then
 fi
 docker compose version >/dev/null
 
-# 2. Chave de deploy (somente leitura) para o repositório privado
+command -v git >/dev/null 2>&1 || { apt-get update -qq && apt-get install -y -qq git; }
+
+# 2. Chave de deploy (somente leitura) — só necessária se o repositório for privado (REPO via SSH)
+case "$REPO" in git@*) ;; *) SKIP_KEY=1 ;; esac
+if [ -z "${SKIP_KEY:-}" ]; then
 mkdir -p /root/.ssh && chmod 700 /root/.ssh
 if [ ! -f "$KEY" ]; then
   ssh-keygen -t ed25519 -N "" -C "deploy-sistema-mundial@$(hostname)" -f "$KEY" >/dev/null
@@ -40,6 +44,7 @@ if ! ssh -o BatchMode=yes -T github-sistema 2>&1 | grep -qi "successfully authen
   cat "$KEY.pub"
   echo
   read -r -p "Depois de adicionar, tecle Enter para continuar... " _ </dev/tty
+fi
 fi
 
 # 3. Código
