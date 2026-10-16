@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "mcp:stdio": "tsx --conditions=react-server scripts/mcp-stdio.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.135.0",

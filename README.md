@@ -1,36 +1,38 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Ótica Mundial — Sistema unificado
 
-## Getting Started
+Gestão (ERP de ótica), vendas e clientes das 2 lojas em um só sistema. Reúne o que existia no **Mundial Retail**, **Mundial Fidelidade** e **Experiência Multifocal**, mais um **assistente de balcão** inspirado no Oferecer e um **servidor MCP** para o gestor operar tudo por agente de IA.
 
-First, run the development server:
+## Rodar
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abra http://localhost:3000. Sem Supabase configurado o sistema entra em **modo demonstração** (dados fictícios em memória, reiniciam ao reiniciar o servidor) e o login permite escolher um perfil.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Conectar o Supabase
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Veja [docs/supabase.md](docs/supabase.md). Resumo: rodar `supabase/migrations/0001_schema.sql`, preencher `.env.local` a partir de `.env.example`, criar o usuário admin no Supabase Auth com o mesmo e-mail do funcionário.
 
-## Learn More
+## Módulos
 
-To learn more about Next.js, take a look at the following resources:
+| Área | Rotas |
+|---|---|
+| Atendimento | `/atendimento` (balcão com campos rápidos, regras + IA), `/simulador` |
+| Vendas | `/vendas/nova`, `/vendas`, `/orcamentos`, `/os`, `/caixa` |
+| Clientes | `/clientes`, `/fidelidade`, `/crm`, `/mensagens`, `/agenda`, portal `/cartao/<token>` |
+| Gestão | `/` painel, `/estoque`, `/compras`, `/fornecedores`, `/financeiro`, `/metas`, `/relatorios` |
+| Administração | `/admin/usuarios`, `/admin/departamentos`, `/admin/lojas`, `/admin/catalogo`, `/admin/convenios`, `/admin/agente`, `/admin/auditoria` |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Agente de IA do gestor
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Servidor MCP em `/api/mcp` (token gerado em `/admin/agente`). Guia para Claude, Codex, Hermes em [docs/agente-ia.md](docs/agente-ia.md).
 
-## Deploy on Vercel
+## Arquitetura
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Next.js 16 (App Router, Server Actions), React 19, Tailwind 4.
+- `src/lib/db` — camada de dados única (Supabase com service role no servidor, ou memória no modo demo).
+- `src/lib/audit.ts` — toda escrita registra antes/depois em `audit_log` (origem app ou agente).
+- Dinheiro sempre em centavos inteiros.
+- Análise de engenharia reversa que originou o projeto: [docs/analise-engenharia-reversa.md](docs/analise-engenharia-reversa.md).

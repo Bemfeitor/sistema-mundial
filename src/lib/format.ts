@@ -45,5 +45,7 @@ export const LABEL: Record<string, string> = {
   aguardando_pedido: "Aguardando pedido", pedido_enviado: "Pedido enviado", em_producao: "Em produção", recebido: "Recebido", em_montagem: "Em montagem", conferencia: "Conferência", pronto: "Pronto", cliente_avisado: "Cliente avisado", entregue: "Entregue", pendencia: "Pendência técnica", retrabalho: "Retrabalho", devolvido_lab: "Devolvido ao laboratório", cancelado: "Cancelado",
   admin: "Administrador", gerente: "Gerente", vendedor: "Vendedor", caixa: "Caixa", optometrista: "Optometrista", tecnico: "Técnico óptico", financeiro: "Financeiro", estoquista: "Estoquista",
   aberto: "Aberto", pago: "Pago", vencido: "Vencido",
+  concluida: "Concluída", cancelada: "Cancelada", principal: "Principal", adicional: "Adicional", segundo_par: "Segundo par", upgrade: "Upgrade",
+  convertido: "Convertido", perdido: "Perdido", solicitada: "Solicitada", enviada: "Enviada", recebida: "Recebida", rascunho: "Rascunho", enviado: "Enviado", recebido_parcial: "Recebido parcial",
 };
 export const label = (k?: string | null) => (k ? LABEL[k] ?? k : "—");

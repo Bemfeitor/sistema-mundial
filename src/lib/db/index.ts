@@ -111,7 +111,10 @@ function supabase(): Db {
     mode: "supabase",
     async list(table, opts = {}) {
       let q = c.from(table).select("*");
-      if (opts.eq) for (const [k, v] of Object.entries(opts.eq)) if (v !== undefined) q = q.eq(k, v as never);
+      if (opts.eq)
+        for (const [k, v] of Object.entries(opts.eq))
+          if (v === null) q = q.is(k, null);
+          else if (v !== undefined) q = q.eq(k, v as never);
       if (opts.in) q = q.in(opts.in.column, opts.in.values as never[]);
       if (opts.gte) q = q.gte(opts.gte.column, opts.gte.value);
       if (opts.lte) q = q.lte(opts.lte.column, opts.lte.value);

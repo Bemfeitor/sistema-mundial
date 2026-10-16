@@ -202,7 +202,7 @@ export interface PurchaseOrder extends Base {
   number: string;
   supplier_id: ID;
   store_id: ID;
-  items: { product_id: ID; qty: number; cost_cents: number }[];
+  items: { product_id: ID; qty: number; cost_cents: number; received?: number }[];
   total_cents: number;
   status: "rascunho" | "enviado" | "recebido_parcial" | "recebido" | "cancelado";
   expected_at?: string | null;
@@ -328,6 +328,7 @@ export interface Receivable extends Base {
   due_at: string;
   amount_cents: number;
   paid_cents: number;
+  paid_at?: string | null;
   status: "aberto" | "pago" | "vencido" | "cancelado";
 }
 
@@ -339,6 +340,7 @@ export interface Payable extends Base {
   due_at: string;
   amount_cents: number;
   paid_cents: number;
+  paid_at?: string | null;
   status: "aberto" | "pago" | "vencido" | "cancelado";
 }
 
