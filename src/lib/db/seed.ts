@@ -12,7 +12,12 @@ const day = (offset: number, h = 10) => {
   return d;
 };
 const ymd = (d: Date) => d.toISOString().slice(0, 10);
-const uid = (p: string, n: number) => `${p}-${String(n).padStart(4, "0")}-0000-4000-8000-000000000000`.slice(0, 36);
+// UUID válido e determinístico: hash do prefixo (por tabela) + número sequencial
+const uid = (p: string, n: number) => {
+  let h = 2166136261;
+  for (const ch of p) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0;
+  return `${h.toString(16).padStart(8, "0")}-${n.toString(16).padStart(4, "0")}-4000-8000-000000000000`;
+};
 
 export function buildSeed() {
   seedN = 42;

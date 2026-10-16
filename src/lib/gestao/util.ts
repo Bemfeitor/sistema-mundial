@@ -103,7 +103,9 @@ export const labLate = (o: { status: string; due_at?: string | null }, today = t
 /** CSV com ";" (padrão Excel pt-BR) e BOM UTF-8. */
 export function toCsv(rows: (string | number | null | undefined)[][]) {
   const cell = (v: string | number | null | undefined) => {
-    const s = v == null ? "" : typeof v === "number" ? String(v).replace(".", ",") : v;
+    let s = v == null ? "" : typeof v === "number" ? String(v).replace(".", ",") : v;
+    // Neutraliza injeção de fórmulas (=, +, -, @, tab, CR) em textos; números ficam como estão
+    if (typeof v === "string" && /^[=+\-@\t\r]/.test(s)) s = `'${s}`;
     return /[";\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   return "﻿" + rows.map((r) => r.map(cell).join(";")).join("\r\n");

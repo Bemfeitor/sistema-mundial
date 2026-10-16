@@ -4,7 +4,7 @@ import { AlertTriangle, FlaskConical, Minus, Plus, Search, Trash2 } from "lucide
 import { Badge, Button, Card, CardHeader, Input, Notice, Select, cn } from "@/components/ui";
 import { brl, label } from "@/lib/format";
 import { ITEM_ROLES, type LensWarning } from "@/lib/vendas/calc";
-import type { CartLine, CatalogItem } from "@/lib/vendas/types";
+import type { CartLineView, CatalogItem } from "@/lib/vendas/types";
 import type { ProductCategory } from "@/lib/types";
 
 const CATS: ProductCategory[] = ["armacao", "lente", "solar", "lente_contato", "acessorio", "servico"];
@@ -17,8 +17,8 @@ export function ProductsStep({
   warnings,
 }: {
   catalog: CatalogItem[];
-  cart: CartLine[];
-  onChange: (c: CartLine[]) => void;
+  cart: CartLineView[];
+  onChange: (c: CartLineView[]) => void;
   warnings: LensWarning[];
 }) {
   const [term, setTerm] = useState("");
@@ -40,7 +40,7 @@ export function ProductsStep({
       onChange([...cart, { product_id: p.id, qty: 1, price_cents: p.price_cents, role: hasSameCat ? "segundo_par" : "principal" }]);
     }
   };
-  const set = (i: number, patch: Partial<CartLine>) => onChange(cart.map((l, k) => (k === i ? { ...l, ...patch } : l)));
+  const set = (i: number, patch: Partial<CartLineView>) => onChange(cart.map((l, k) => (k === i ? { ...l, ...patch } : l)));
   const remove = (i: number) => onChange(cart.filter((_, k) => k !== i));
 
   // Leitura de código de barras: Enter com match exato adiciona direto
@@ -140,7 +140,7 @@ export function ProductsStep({
                         {over && <span className="ml-2 text-red-600">acima do estoque ({p?.stock})</span>}
                       </div>
                     </div>
-                    <Select className="w-36" value={l.role} onChange={(e) => set(i, { role: e.target.value as CartLine["role"] })}>
+                    <Select className="w-36" value={l.role} onChange={(e) => set(i, { role: e.target.value as CartLineView["role"] })}>
                       {ITEM_ROLES.map((r) => (
                         <option key={r.value} value={r.value}>
                           {r.label}

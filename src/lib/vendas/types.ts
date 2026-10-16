@@ -46,12 +46,15 @@ export interface WizardInit {
   initialCustomer: CustomerContext | null;
 }
 
+/** Linha enviada ao servidor: o preço é sempre definido no servidor (catálogo/orçamento). */
 export interface CartLine {
   product_id: string;
   qty: number;
-  price_cents: number;
   role: NonNullable<SaleItem["role"]>;
 }
+
+/** Linha do carrinho no wizard: inclui o preço apenas para exibição. */
+export type CartLineView = CartLine & { price_cents: number };
 
 export interface PaymentLine {
   method: PaymentMethod;

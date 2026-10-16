@@ -6,7 +6,7 @@ import { Button, Card, LinkButton, Notice, cn } from "@/components/ui";
 import { brl, date, todayYmd, toCents } from "@/lib/format";
 import { addMonths, lensWarnings } from "@/lib/vendas/calc";
 import { finalizeSaleAction, maxRedeemableAction } from "@/lib/vendas/actions";
-import type { CartLine, CheckoutResult, CustomerContext, PaymentLine, WizardInit } from "@/lib/vendas/types";
+import type { CartLineView, CheckoutResult, CustomerContext, PaymentLine, WizardInit } from "@/lib/vendas/types";
 import { CustomerCard, CustomerStep } from "./customer-step";
 import { RxStep } from "./rx-step";
 import { ProductsStep } from "./products-step";
@@ -20,7 +20,7 @@ export function SaleWizard({ init }: { init: WizardInit }) {
   const [finalConsumer, setFinalConsumer] = useState(false);
   const [rxId, setRxId] = useState<string | null>(null);
   const [rxSkipped, setRxSkipped] = useState(false);
-  const [cart, setCart] = useState<CartLine[]>(
+  const [cart, setCart] = useState<CartLineView[]>(
     () => init.quote?.items.map((i) => ({ product_id: i.product_id, qty: i.qty, price_cents: i.price_cents, role: i.role ?? "principal" })) ?? [],
   );
   const [discount, setDiscount] = useState<DiscountState>({ mode: "valor", text: "" });
@@ -87,7 +87,7 @@ export function SaleWizard({ init }: { init: WizardInit }) {
         customerId: customer?.customer.id ?? null,
         prescriptionId: rxId,
         quoteId: init.quote?.id ?? null,
-        items: cart,
+        items: cart.map(({ product_id, qty, role }) => ({ product_id, qty, role })),
         discountCents,
         payments,
         crediario: payments.some((p) => p.method === "crediario") ? crediario : null,

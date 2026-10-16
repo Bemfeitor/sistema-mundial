@@ -185,7 +185,7 @@ export function createOticaMcpServer(actor: Actor, scope: AgentScope) {
           .optional()
           .describe("Filtro de intervalo em uma coluna (datas ISO ou números)"),
         busca: z
-          .object({ colunas: z.array(z.string()).min(1), termo: z.string().min(1) })
+          .object({ colunas: z.array(z.string()).min(1), termo: z.string().min(1).max(100) })
           .optional()
           .describe("Busca textual (contém, sem acento/maiúsculas) nas colunas indicadas"),
         ordem: z.object({ coluna: z.string(), crescente: z.boolean().optional() }).optional(),
@@ -369,7 +369,7 @@ export function createOticaMcpServer(actor: Actor, scope: AgentScope) {
       ...meta("cliente_360"),
       inputSchema: {
         customer_id: z.string().optional().describe("id do cliente"),
-        busca: z.string().optional().describe("nome, CPF, telefone ou e-mail (usado se customer_id não for informado)"),
+        busca: z.string().max(100).optional().describe("nome, CPF, telefone ou e-mail (usado se customer_id não for informado)"),
       },
     },
     safe(async ({ customer_id, busca }) => {

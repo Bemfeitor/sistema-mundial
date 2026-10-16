@@ -1,8 +1,9 @@
 "use server";
+import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/session";
+import { canAccessStore, requireUser } from "@/lib/session";
 import { actorOf, change, create } from "@/lib/audit";
 import { grantCashbackForSale, maxRedeemable, redeemBalance } from "@/lib/fidelidade";
 import { moveStock, nextNumber } from "@/lib/estoque";
@@ -57,7 +58,7 @@ export async function quickCreateCustomerAction(input: QuickCustomerInput): Prom
     seller_id: ctx.user.id,
     insurer_id: null,
     level: "Novo",
-    card_token: `card_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`,
+    card_token: `card_${randomBytes(24).toString("base64url")}`,
     consent_program: false,
     consent_marketing: false,
     consent_version: null,
@@ -112,6 +113,7 @@ export async function finalizeSaleAction(input: CheckoutInput): Promise<Checkout
   // Produtos (preço sempre do catálogo; itens de orçamento mantêm o preço orçado)
   const quote = input.quoteId ? await d.get("quotes", input.quoteId) : null;
   if (input.quoteId && (!quote || quote.status !== "aberto")) return { ok: false, error: "Orçamento não encontrado ou já convertido." };
+  if (quote && !canAccessStore(ctx, quote.store_id)) return { ok: false, error: "Orçamento de outra loja: sem permissão." };
   const quotePrice = new Map((quote?.items ?? []).map((i) => [i.product_id, i.price_cents]));
   const products = await d.list("products", { in: { column: "id", values: input.items.map((i) => i.product_id) } });
   const byId = new Map(products.map((p) => [p.id, p]));
@@ -343,6 +345,7 @@ export async function cancelSaleAction(form: FormData) {
   const actor = actorOf(ctx.user);
   const sale = await d.get("sales", id);
   if (!sale || sale.status === "cancelada") redirect(`/vendas/${id}`);
+  if (!canAccessStore(ctx, sale.store_id)) redirect(`/vendas/${id}?erro=loja`);
   if (!reason) redirect(`/vendas/${id}?erro=motivo`);
 
   await change(actor, "sales", sale.id, { status: "cancelada", note: [sale.note, `Cancelada: ${reason}`].filter(Boolean).join(" · ") }, "cancelar");

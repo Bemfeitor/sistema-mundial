@@ -557,7 +557,7 @@ export function Balcao({ produtos }: { produtos: ProdutoBalcao[] }) {
                 )}
                 {ia.estado === "fallback" && (
                   <Notice tone="amber">
-                    IA indisponível{ia.motivo ? `: ${ia.motivo}` : ""}. Use as dicas das regras acima — elas já consideram o perfil marcado.
+                    IA indisponível{ia.motivo ? `: ${ia.motivo.replace(/\.+$/, "")}` : ""}. Use as dicas das regras acima — elas já consideram o perfil marcado.
                   </Notice>
                 )}
                 <div className="flex flex-wrap gap-1.5">

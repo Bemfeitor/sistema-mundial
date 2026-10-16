@@ -27,6 +27,7 @@ const ERR: Record<string, string> = {
   checklist: "Para marcar como pronto, confirme todos os itens do checklist.",
   observacao: "Informe uma observação para registrar a exceção.",
   status: "Etapa inválida.",
+  loja: "Esta OS pertence a outra loja.",
 };
 
 async function OsDetail({ params, searchParams }: Props) {

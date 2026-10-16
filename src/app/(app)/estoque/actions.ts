@@ -76,6 +76,7 @@ export async function avancarTransferencia(f: FormData) {
     done(back, { ok: "Transferência recebida — estoque lançado no destino." });
   }
   if (to === "cancelada" && (t.status === "solicitada" || t.status === "enviada")) {
+    if (!canStore(ctx, t.from_store_id) && !canStore(ctx, t.to_store_id)) done(back, { erro: "Sem acesso a esta transferência." });
     if (t.status === "enviada")
       for (const it of t.items) await moveStock(actor, { product_id: it.product_id, store_id: t.from_store_id, qty: it.qty, kind: "transferencia", reference: ref, note: "Estorno de transferência cancelada" });
     await change(actor, "transfers", t.id, { status: "cancelada" }, "cancelar transferência");

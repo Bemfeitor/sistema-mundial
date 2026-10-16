@@ -2,6 +2,7 @@
 import { db } from "@/lib/db";
 import { change, create } from "@/lib/audit";
 import { toCents } from "@/lib/format";
+import { canAccessStore, writeStoreId } from "@/lib/session";
 import { actionCtx, done, optStr, str } from "@/lib/gestao/server";
 
 const safeBack = (f: FormData, d: string) => {
@@ -10,11 +11,11 @@ const safeBack = (f: FormData, d: string) => {
 };
 
 export async function baixarTitulo(f: FormData) {
-  const { actor } = await actionCtx("financeiro");
+  const { ctx, actor } = await actionCtx("financeiro");
   const table = str(f, "table") === "payables" ? "payables" : "receivables";
   const back = safeBack(f, `/financeiro?aba=${table === "payables" ? "pagar" : "receber"}`);
   const t = await db().get(table, str(f, "id"));
-  if (!t) done(back, { erro: "Título não encontrado." });
+  if (!t || !canAccessStore(ctx, t.store_id)) done(back, { erro: "Título não encontrado." });
   if (t.status === "cancelado" || t.status === "pago") done(back, { erro: "Título já liquidado ou cancelado." });
   const remaining = t.amount_cents - t.paid_cents;
   const amount = str(f, "amount") ? Math.min(remaining, toCents(str(f, "amount"))) : remaining;
@@ -25,10 +26,12 @@ export async function baixarTitulo(f: FormData) {
 }
 
 export async function cancelarTitulo(f: FormData) {
-  const { actor } = await actionCtx("financeiro");
+  const { ctx, actor } = await actionCtx("financeiro");
   const table = str(f, "table") === "payables" ? "payables" : "receivables";
   const back = safeBack(f, "/financeiro");
   const id = str(f, "id");
+  const t = await db().get(table, id);
+  if (!t || !canAccessStore(ctx, t.store_id)) done(back, { erro: "Título não encontrado." });
   await change(actor, table, id, { status: "cancelado" }, "cancelar título");
   done(back, { ok: "Título cancelado." });
 }
@@ -38,8 +41,12 @@ export async function salvarPagar(f: FormData) {
   const back = "/financeiro?aba=pagar";
   const id = str(f, "id");
   const description = str(f, "description"), due_at = str(f, "due_at"), amount_cents = toCents(str(f, "amount"));
-  const store_id = str(f, "store_id") || ctx.user.store_id;
+  const store_id = writeStoreId(ctx, str(f, "store_id") || ctx.user.store_id);
   if (!description || !due_at || amount_cents <= 0) done(back, { erro: "Preencha descrição, vencimento e valor." });
+  if (id) {
+    const cur = await db().get("payables", id);
+    if (!cur || !canAccessStore(ctx, cur.store_id)) done(back, { erro: "Conta não encontrada." });
+  }
   const row = { store_id, supplier_id: optStr(f, "supplier_id"), category: str(f, "category") || "Outros", description, due_at, amount_cents };
   if (id) await change(actor, "payables", id, row);
   else {
@@ -66,7 +73,7 @@ export async function criarReceber(f: FormData) {
   const description = str(f, "description"), due_at = str(f, "due_at"), amount_cents = toCents(str(f, "amount"));
   if (!description || !due_at || amount_cents <= 0) done(back, { erro: "Preencha descrição, vencimento e valor." });
   await create(actor, "receivables", {
-    store_id: str(f, "store_id") || ctx.user.store_id, customer_id: optStr(f, "customer_id"), description, due_at, amount_cents, paid_cents: 0, status: "aberto",
+    store_id: writeStoreId(ctx, str(f, "store_id") || ctx.user.store_id), customer_id: optStr(f, "customer_id"), description, due_at, amount_cents, paid_cents: 0, status: "aberto",
   });
   done(back, { ok: "Conta a receber lançada." });
 }

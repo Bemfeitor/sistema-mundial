@@ -9,6 +9,9 @@ import { currentUser } from "@/lib/session";
 export const dynamic = "force-dynamic";
 
 const MODELO_PADRAO = "claude-sonnet-5-5";
+const MAX_TEXTO = 1000;
+const MAX_JSON = 4096;
+const MAX_CORPO = 32 * 1024;
 
 const SYSTEM = `Você é um consultor sênior de vendas de uma ótica no Brasil, especialista em lentes oftálmicas, armações, tratamentos, lentes de contato e atendimento de balcão.
 Seu papel é ajudar o VENDEDOR durante o atendimento presencial, com base no perfil marcado por ele e nas regras do sistema.
@@ -46,8 +49,8 @@ function montarPrompt(b: Corpo) {
     b.alertas?.length ? `Alertas do sistema: ${b.alertas.join(" | ")}` : "",
     b.pacote ? `Pacote recomendado: ${b.pacote.tier ?? ""} — ${b.pacote.itens?.join(", ") ?? ""} (${b.pacote.total ?? ""})` : "",
     b.complementos?.length ? `Complementos disponíveis no catálogo: ${b.complementos.join(", ")}` : "",
-    b.cliente ? `Histórico do cliente: ${JSON.stringify(b.cliente)}` : "",
-    b.texto?.trim() ? `\nObservação do vendedor: ${b.texto.trim().slice(0, 1500)}` : "",
+    b.cliente ? `Histórico do cliente: ${JSON.stringify(b.cliente).slice(0, MAX_JSON)}` : "",
+    typeof b.texto === "string" && b.texto.trim() ? `\nObservação do vendedor: ${b.texto.trim().slice(0, MAX_TEXTO)}` : "",
     "\nMonte dicas personalizadas e um roteiro de abordagem para este atendimento.",
   ];
   return linhas.filter(Boolean).join("\n");
@@ -97,13 +100,22 @@ async function viaOpenAICompat(prompt: string) {
 export async function POST(req: Request) {
   const user = await currentUser();
   if (!user) return Response.json({ erro: "Não autenticado." }, { status: 401 });
+  if (user.role !== "admin" && !user.permissions.includes("vender"))
+    return Response.json({ erro: "Sem permissão para usar a IA do balcão." }, { status: 403 });
 
   let corpo: Corpo;
   try {
-    corpo = (await req.json()) as Corpo;
+    const raw = await req.text();
+    if (raw.length > MAX_CORPO) return Response.json({ erro: "Requisição muito grande." }, { status: 413 });
+    corpo = JSON.parse(raw) as Corpo;
   } catch {
     return Response.json({ erro: "Requisição inválida." }, { status: 400 });
   }
+  if (!corpo || typeof corpo !== "object") return Response.json({ erro: "Requisição inválida." }, { status: 400 });
+  if (typeof corpo.texto === "string" && corpo.texto.length > MAX_TEXTO)
+    return Response.json({ erro: `Observação muito longa (máximo ${MAX_TEXTO} caracteres).` }, { status: 400 });
+  if (corpo.perfil && JSON.stringify(corpo.perfil).length > MAX_JSON)
+    return Response.json({ erro: "Perfil muito grande." }, { status: 413 });
 
   const temAnthropic = Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
   const temOpenAI = Boolean(process.env.OPENAI_API_KEY);

@@ -2,7 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/session";
+import { canAccessStore, requireUser } from "@/lib/session";
 import { actorOf, change, create } from "@/lib/audit";
 import { LAB_EXCEPTIONS, LAB_STATUSES, type LabStatus } from "@/lib/types";
 import { READY_CHECKLIST } from "./os";
@@ -20,6 +20,7 @@ export async function advanceLabOrderAction(form: FormData) {
   const d = db();
   const os = await d.get("lab_orders", id);
   if (!os) redirect("/os");
+  if (!canAccessStore(ctx, os.store_id)) redirect(`${back}?erro=loja`);
 
   const checklist = { ...(os.checklist ?? {}) };
   for (const c of READY_CHECKLIST) if (form.has(`check_${c.key}`)) checklist[c.key] = true;

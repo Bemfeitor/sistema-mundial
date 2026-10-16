@@ -1,7 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireUser, storeFilter } from "@/lib/session";
+import { canAccessStore, requireUser, storeFilter } from "@/lib/session";
 import { actorOf, change, create } from "@/lib/audit";
 import { availableBalance } from "@/lib/fidelidade";
 import { ageFrom, todayYmd } from "@/lib/format";
@@ -54,10 +54,10 @@ export async function buscarClientes(termo: string): Promise<ClienteResumo[]> {
 
 /** Histórico, última receita e saldo de cashback do cliente. */
 export async function carregarCliente(id: string): Promise<ClienteBalcao | null> {
-  await requireUser("vender");
+  const ctx = await requireUser("vender");
   const d = db();
   const c = await d.get("customers", id);
-  if (!c) return null;
+  if (!c || !canAccessStore(ctx, c.store_id)) return null;
   const [rxs, sales, saldo] = await Promise.all([
     d.list("prescriptions", { eq: { customer_id: id }, order: { column: "exam_date", ascending: false }, limit: 1 }),
     d.list("sales", { eq: { customer_id: id, status: "concluida" }, order: { column: "created_at", ascending: false }, limit: 20 }),
@@ -103,6 +103,10 @@ export async function salvarOrcamento(input: SalvarOrcamentoInput): Promise<{ id
   if (!input.items.length) throw new Error("Adicione ao menos um item ao orçamento.");
   // Recalcula preços com o catálogo (não confia no navegador)
   const d = db();
+  if (input.customer_id) {
+    const c = await d.get("customers", input.customer_id);
+    if (!c || !canAccessStore(ctx, c.store_id)) throw new Error("Cliente não encontrado ou de outra loja.");
+  }
   const items: SaleItem[] = [];
   for (const it of input.items) {
     const p = await d.get("products", it.product_id);

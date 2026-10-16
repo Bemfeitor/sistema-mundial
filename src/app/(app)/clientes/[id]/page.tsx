@@ -360,7 +360,7 @@ export default async function ClienteDetalhe(props: {
           {/* Conceder benefício */}
           <Card>
             <CardHeader title="Conceder benefício" />
-            <form action={async (fd: FormData): Promise<void> => { await concederBeneficio(fd); }} className="grid gap-3 p-5">
+            <form action={async (fd: FormData): Promise<void> => { "use server"; await concederBeneficio(fd); }} className="grid gap-3 p-5">
               <input type="hidden" name="customer_id" value={id} />
               <Field label="Tipo">
                 <Select name="kind" defaultValue="presente">

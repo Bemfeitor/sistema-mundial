@@ -45,7 +45,7 @@ export default async function CrmPage() {
         title="CRM — Oportunidades"
         subtitle={`${opportunities.length} oportunidades`}
         actions={
-          <form action={async (fd: FormData): Promise<void> => { await gerarOportunidades(fd); }}>
+          <form action={async (fd: FormData): Promise<void> => { "use server"; await gerarOportunidades(fd); }}>
             <Button type="submit" variant="secondary">
               Gerar oportunidades automáticas
             </Button>

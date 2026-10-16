@@ -28,6 +28,7 @@ export default function VendaPage(props: Props) {
 const ERR: Record<string, string> = {
   permissao: "Somente gerente ou administrador pode cancelar vendas.",
   motivo: "Informe o motivo do cancelamento.",
+  loja: "Esta venda pertence a outra loja.",
 };
 
 async function Venda({ params, searchParams }: Props) {

@@ -119,8 +119,8 @@ function supabase(): Db {
       if (opts.gte) q = q.gte(opts.gte.column, opts.gte.value);
       if (opts.lte) q = q.lte(opts.lte.column, opts.lte.value);
       if (opts.search?.term) {
-        const t = opts.search.term.replace(/[,()%]/g, " ").trim();
-        q = q.or(opts.search.columns.map((col) => `${col}.ilike.%${t}%`).join(","));
+        const t = opts.search.term.replace(/[,()%.:*\\"'`]/g, " ").trim().slice(0, 100);
+        if (t) q = q.or(opts.search.columns.map((col) => `${col}.ilike.%${t}%`).join(","));
       }
       if (opts.order) q = q.order(opts.order.column, { ascending: opts.order.ascending ?? true });
       q = q.limit(opts.limit ?? 1000);

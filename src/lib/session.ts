@@ -62,5 +62,13 @@ export async function requireUser(perm?: Permission): Promise<Ctx> {
   return { user, stores, storeId, can };
 }
 
+/** O usuário pode agir sobre registros desta loja? (consolidado = todas; senão só a própria). */
+export const canAccessStore = (ctx: Ctx, storeId: string | null | undefined) =>
+  ctx.can("consolidado") || !storeId || storeId === ctx.user.store_id;
+
+/** Loja onde gravar registros novos: escolhida (se permitida) ou a do usuário. */
+export const writeStoreId = (ctx: Ctx, requested?: string | null) =>
+  requested && canAccessStore(ctx, requested) ? requested : (ctx.storeId ?? ctx.user.store_id);
+
 /** Filtro eq por loja quando não consolidado. */
 export const storeFilter = (ctx: Ctx) => (ctx.storeId ? { store_id: ctx.storeId } : {});

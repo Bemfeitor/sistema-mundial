@@ -105,7 +105,12 @@ export default async function CartaoPage(props: {
               {sales.map((s) => (
                 <div key={s.id} className="flex items-center justify-between text-sm">
                   <span className="text-brand-200">{date(s.created_at)}</span>
-                  <span className="font-semibold">{brl(s.total_cents)}</span>
+                  <span className="font-semibold">
+                    {(() => {
+                      const n = s.items.reduce((a, i) => a + i.qty, 0);
+                      return `${n} ${n === 1 ? "item" : "itens"}`;
+                    })()}
+                  </span>
                 </div>
               ))}
             </div>

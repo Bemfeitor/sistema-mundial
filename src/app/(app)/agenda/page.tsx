@@ -129,7 +129,7 @@ export default async function AgendaPage(props: {
         <div>
           <Card>
             <CardHeader title="Novo agendamento" />
-            <form action={async (fd: FormData): Promise<void> => { await salvarAgendamento(undefined, fd); }} className="grid gap-3 p-5">
+            <form action={async (fd: FormData): Promise<void> => { "use server"; await salvarAgendamento(undefined, fd); }} className="grid gap-3 p-5">
               <Field label="Cliente (pesquise pelo nome)">
                 <Select name="customer_id" defaultValue={clienteId ?? ""}>
                   <option value="">Sem vínculo</option>

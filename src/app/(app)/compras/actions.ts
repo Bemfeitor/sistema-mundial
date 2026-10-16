@@ -4,6 +4,7 @@ import { change, create } from "@/lib/audit";
 import { moveStock, nextNumber } from "@/lib/estoque";
 import { todayYmd } from "@/lib/format";
 import type { PurchaseOrder } from "@/lib/types";
+import { canAccessStore } from "@/lib/session";
 import { actionCtx, done, int, optStr, str } from "@/lib/gestao/server";
 import { addDays } from "@/lib/gestao/util";
 import { toCents } from "@/lib/format";
@@ -15,6 +16,7 @@ export async function criarPedido(f: FormData) {
   const back = "/compras?aba=novo";
   const supplier_id = str(f, "supplier_id"), store_id = str(f, "store_id");
   if (!supplier_id || !store_id) done(back, { erro: "Informe fornecedor e loja." });
+  if (!canAccessStore(ctx, store_id)) done(back, { erro: "Sem acesso a esta loja." });
   const products = await db().list("products");
   const items: POItem[] = [];
   for (let i = 0; i < 10; i++) {
@@ -45,6 +47,7 @@ export async function gerarDaSugestao(f: FormData) {
     .map(([product_id, qty]) => ({ product_id, qty: Number(qty), cost_cents: products.find((p) => p.id === product_id)?.cost_cents ?? 0, received: 0 }))
     .filter((it) => it.product_id && it.qty > 0);
   if (!supplier_id || !items.length) done("/compras?aba=sugestao", { erro: "Sugestão sem fornecedor ou itens." });
+  if (!canAccessStore(ctx, store_id)) done("/compras?aba=sugestao", { erro: "Sem acesso a esta loja." });
   const number = await nextNumber("purchase_orders", "PC", 1);
   const po = await create(actor, "purchase_orders", {
     number, supplier_id, store_id, items,
@@ -55,11 +58,12 @@ export async function gerarDaSugestao(f: FormData) {
 }
 
 export async function mudarStatusPedido(f: FormData) {
-  const { actor } = await actionCtx("compras");
+  const { ctx, actor } = await actionCtx("compras");
   const id = str(f, "id"), to = str(f, "to") as PurchaseOrder["status"];
   const po = await db().get("purchase_orders", id);
   const back = `/compras?pedido=${id}`;
   if (!po) done("/compras", { erro: "Pedido não encontrado." });
+  if (!canAccessStore(ctx, po.store_id)) done("/compras", { erro: "Pedido de outra loja." });
   if (to === "enviado" && po.status === "rascunho") {
     await change(actor, "purchase_orders", id, { status: "enviado" }, "enviar pedido");
     done(back, { ok: "Pedido marcado como enviado ao fornecedor." });
@@ -73,11 +77,12 @@ export async function mudarStatusPedido(f: FormData) {
 
 /** Recebimento (total ou parcial): entrada no estoque + conta a pagar. */
 export async function receberPedido(f: FormData) {
-  const { actor } = await actionCtx("compras");
+  const { ctx, actor } = await actionCtx("compras");
   const id = str(f, "id");
   const back = `/compras?pedido=${id}`;
   const po = await db().get("purchase_orders", id);
   if (!po) done("/compras", { erro: "Pedido não encontrado." });
+  if (!canAccessStore(ctx, po.store_id)) done("/compras", { erro: "Pedido de outra loja." });
   if (!["enviado", "recebido_parcial", "rascunho"].includes(po.status)) done(back, { erro: "Pedido não pode ser recebido neste status." });
   const items = po.items as POItem[];
   let value = 0, pieces = 0;

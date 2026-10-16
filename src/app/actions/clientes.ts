@@ -1,10 +1,27 @@
 "use server";
+import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { create, change, destroy, actorOf } from "@/lib/audit";
-import { requireUser } from "@/lib/session";
+import { canAccessStore, requireUser, writeStoreId, type Ctx } from "@/lib/session";
 import { validarCpf, validarTelefone } from "@/lib/clientes/cpf";
+
+const newCardToken = () => `card_${randomBytes(24).toString("base64url")}`;
+
+/** Cliente existente e da(s) loja(s) que o usuário pode acessar; senão null. */
+async function accessibleCustomer(ctx: Ctx, id: string | null | undefined) {
+  if (!id) return null;
+  const c = await db().get("customers", id);
+  return c && canAccessStore(ctx, c.store_id) ? c : null;
+}
+
+/** Mensagem cujo cliente pertence a uma loja acessível; senão null. */
+async function accessibleMessage(ctx: Ctx, id: string | null | undefined) {
+  if (!id) return null;
+  const m = await db().get("messages", id);
+  return m && (await accessibleCustomer(ctx, m.customer_id)) ? m : null;
+}
 
 // ---------- Cliente ----------
 
@@ -41,6 +58,7 @@ export async function salvarCliente(prev: unknown, fd: FormData) {
   const actor = actorOf(ctx.user);
 
   if (id) {
+    if (!(await accessibleCustomer(ctx, id))) return { error: "Cliente não encontrado ou de outra loja." };
     await change(actor, "customers", id, row);
     revalidatePath(`/clientes/${id}`);
     revalidatePath("/clientes");
@@ -49,8 +67,8 @@ export async function salvarCliente(prev: unknown, fd: FormData) {
     const novo = await create(actor, "customers", {
       ...row,
       level: "Novo",
-      card_token: crypto.randomUUID().replace(/-/g, ""),
-      store_id: ctx.storeId ?? ctx.user.store_id,
+      card_token: newCardToken(),
+      store_id: writeStoreId(ctx, fd.get("store_id") as string | null),
       seller_id: ctx.user.role === "vendedor" ? ctx.user.id : null,
     });
     revalidatePath("/clientes");
@@ -62,6 +80,7 @@ export async function alterarNivel(fd: FormData) {
   const ctx = await requireUser("clientes");
   const id = fd.get("id") as string;
   const level = fd.get("level") as string;
+  if (!(await accessibleCustomer(ctx, id))) redirect("/sem-permissao");
   await change(actorOf(ctx.user), "customers", id, { level: level as never });
   revalidatePath(`/clientes/${id}`);
 }
@@ -69,8 +88,9 @@ export async function alterarNivel(fd: FormData) {
 export async function reemitirCartao(fd: FormData) {
   const ctx = await requireUser("clientes");
   const id = fd.get("id") as string;
+  if (!(await accessibleCustomer(ctx, id))) redirect("/sem-permissao");
   await change(actorOf(ctx.user), "customers", id, {
-    card_token: crypto.randomUUID().replace(/-/g, ""),
+    card_token: newCardToken(),
   }, "reemitir_cartao");
   revalidatePath(`/clientes/${id}`);
 }
@@ -80,6 +100,7 @@ export async function reemitirCartao(fd: FormData) {
 export async function salvarReceita(fd: FormData) {
   const ctx = await requireUser("clientes");
   const customerId = fd.get("customer_id") as string;
+  if (!(await accessibleCustomer(ctx, customerId))) redirect("/sem-permissao");
 
   const parseEye = (prefix: string) => ({
     sph: fd.get(`${prefix}_sph`) ? Number(fd.get(`${prefix}_sph`)) : null,
@@ -110,14 +131,18 @@ export async function concederBeneficio(fd: FormData) {
   const reason = (fd.get("reason") as string)?.trim();
 
   if (!reason) return { error: "Motivo é obrigatório." };
+  if (!["cashback", "credito", "presente", "cupom"].includes(kind)) return { error: "Tipo de benefício inválido." };
+  if (!(await accessibleCustomer(ctx, customerId))) return { error: "Cliente não encontrado ou de outra loja." };
 
-  // Crédito em R$ só para admin
-  if (kind === "credito" && ctx.user.role !== "admin")
-    return { error: "Concessão de crédito em R$ é exclusiva para administrador." };
+  // Crédito/cashback em R$ só para admin
+  const isAdmin = ctx.user.role === "admin";
+  if ((kind === "credito" || kind === "cashback") && !isAdmin)
+    return { error: "Concessão de crédito ou cashback em R$ é exclusiva para administrador." };
 
   const { toCents } = await import("@/lib/format");
   const amountCents = toCents(fd.get("amount") as string);
   if (amountCents <= 0) return { error: "Valor deve ser maior que zero." };
+  if (!isAdmin && amountCents > 20000) return { error: "Valor máximo para presente/cupom: R$ 200,00." };
 
   const validDays = Number(fd.get("valid_days") ?? 90);
   const now = Date.now();
@@ -157,11 +182,14 @@ export async function registrarAtendimento(fd: FormData) {
   const status = (fd.get("status") as string) || "em_contato";
 
   if (opp_id) {
+    const opp = await db().get("opportunities", opp_id);
+    if (!opp || opp.customer_id !== customer_id || !canAccessStore(ctx, opp.store_id)) redirect("/sem-permissao");
     await change(actorOf(ctx.user), "opportunities", opp_id, { status: status as never, note });
   } else {
+    if (!(await accessibleCustomer(ctx, customer_id))) redirect("/sem-permissao");
     await create(actorOf(ctx.user), "opportunities", {
       customer_id,
-      store_id: ctx.storeId ?? ctx.user.store_id,
+      store_id: writeStoreId(ctx),
       owner_id: ctx.user.id,
       kind: "pos_venda",
       status: status as never,
@@ -184,8 +212,10 @@ export async function salvarMensagem(fd: FormData) {
   if (!text) return { error: "Texto é obrigatório." };
 
   if (id) {
+    if (!(await accessibleMessage(ctx, id))) return { error: "Mensagem não encontrada ou de outra loja." };
     await change(actorOf(ctx.user), "messages", id, { text, status: "para_validar" as const });
   } else {
+    if (!(await accessibleCustomer(ctx, customer_id))) return { error: "Cliente não encontrado ou de outra loja." };
     await create(actorOf(ctx.user), "messages", {
       customer_id,
       kind: (fd.get("kind") as string) || "manual",
@@ -202,6 +232,7 @@ export async function salvarMensagem(fd: FormData) {
 export async function aprovarMensagem(fd: FormData) {
   const ctx = await requireUser("crm");
   const id = fd.get("id") as string;
+  if (!(await accessibleMessage(ctx, id))) redirect("/sem-permissao");
   await change(actorOf(ctx.user), "messages", id, { status: "aprovada" });
   revalidatePath("/mensagens");
 }
@@ -209,6 +240,7 @@ export async function aprovarMensagem(fd: FormData) {
 export async function cancelarMensagem(fd: FormData) {
   const ctx = await requireUser("crm");
   const id = fd.get("id") as string;
+  if (!(await accessibleMessage(ctx, id))) redirect("/sem-permissao");
   await change(actorOf(ctx.user), "messages", id, { status: "cancelada" });
   revalidatePath("/mensagens");
 }
@@ -216,6 +248,7 @@ export async function cancelarMensagem(fd: FormData) {
 export async function marcarEnviada(fd: FormData) {
   const ctx = await requireUser("crm");
   const id = fd.get("id") as string;
+  if (!(await accessibleMessage(ctx, id))) redirect("/sem-permissao");
   await change(actorOf(ctx.user), "messages", id, { status: "enviada" });
   revalidatePath("/mensagens");
 }
@@ -227,7 +260,7 @@ export async function salvarAgendamento(prev: unknown, fd: FormData) {
   const id = fd.get("id") as string | null;
 
   const row = {
-    store_id: (fd.get("store_id") as string) || (ctx.storeId ?? ctx.user.store_id),
+    store_id: writeStoreId(ctx, fd.get("store_id") as string | null),
     customer_id: (fd.get("customer_id") as string) || null,
     customer_name: (fd.get("customer_name") as string)?.trim() || "",
     phone: (fd.get("phone") as string)?.replace(/\D/g, "") || null,
@@ -238,8 +271,11 @@ export async function salvarAgendamento(prev: unknown, fd: FormData) {
     note: (fd.get("note") as string)?.trim() || null,
   };
 
+  if (row.customer_id && !(await accessibleCustomer(ctx, row.customer_id))) return { error: "Cliente não encontrado ou de outra loja." };
   const actor = actorOf(ctx.user);
   if (id) {
+    const ap = await db().get("appointments", id);
+    if (!ap || !canAccessStore(ctx, ap.store_id)) return { error: "Agendamento não encontrado ou de outra loja." };
     await change(actor, "appointments", id, row);
   } else {
     await create(actor, "appointments", row);
@@ -252,6 +288,8 @@ export async function atualizarStatusAgendamento(fd: FormData) {
   const ctx = await requireUser("clientes");
   const id = fd.get("id") as string;
   const status = fd.get("status") as "agendado" | "confirmado" | "realizado" | "faltou" | "cancelado";
+  const ap = await db().get("appointments", id);
+  if (!ap || !canAccessStore(ctx, ap.store_id)) redirect("/sem-permissao");
   await change(actorOf(ctx.user), "appointments", id, { status });
   revalidatePath("/agenda");
 }
@@ -274,13 +312,21 @@ export async function salvarCampanha(prev: unknown, fd: FormData) {
     delay_days: Number(fd.get("delay_days") ?? 0),
     max_use_percent: Number(fd.get("max_use_percent") ?? 30),
     categories: cats as never,
-    store_id: (fd.get("store_id") as string) || null,
+    store_id: ((fd.get("store_id") as string) || null) as string | null,
     starts_at: fd.get("starts_at") as string,
     ends_at: fd.get("ends_at") as string,
   };
 
+  // Sem consolidado: só campanhas da própria loja (nunca globais nem de outra loja)
+  if (!ctx.can("consolidado")) {
+    if (row.store_id && !canAccessStore(ctx, row.store_id)) return { error: "Sem permissão para campanhas de outra loja." };
+    row.store_id = ctx.user.store_id;
+  }
   const actor = actorOf(ctx.user);
   if (id) {
+    const camp = await db().get("campaigns", id);
+    if (!camp || (!ctx.can("consolidado") && camp.store_id !== ctx.user.store_id))
+      return { error: "Campanha não encontrada ou de outra loja." };
     await change(actor, "campaigns", id, row);
   } else {
     await create(actor, "campaigns", row);
