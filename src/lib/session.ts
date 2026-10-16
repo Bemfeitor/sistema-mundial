@@ -1,4 +1,5 @@
 import "server-only";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createServerClient } from "@supabase/ssr";
@@ -7,6 +8,18 @@ import type { Employee, Permission, Store } from "@/lib/types";
 
 export const USER_COOKIE = "otica_user";
 export const STORE_COOKIE = "otica_store";
+
+// Cookie de sessão do modo demo assinado (HMAC) para não ser forjável.
+const secret = () => process.env.SESSION_SECRET || process.env.DEMO_ACCESS_CODE || "dev-somente-local";
+const sig = (id: string) => createHmac("sha256", secret()).update(id).digest("base64url");
+export const signUserId = (id: string) => `${id}.${sig(id)}`;
+function verifyUserCookie(v?: string) {
+  if (!v) return null;
+  const i = v.lastIndexOf(".");
+  if (i < 0) return null;
+  const id = v.slice(0, i), s = Buffer.from(v.slice(i + 1)), e = Buffer.from(sig(id));
+  return s.length === e.length && timingSafeEqual(s, e) ? id : null;
+}
 
 export async function supabaseAuthClient() {
   const jar = await cookies();
@@ -35,7 +48,7 @@ export async function currentUser(): Promise<Employee | null> {
     const [byEmail] = await d.list("employees", { eq: { email: data.user.email ?? "", active: true } });
     return byEmail ?? null;
   }
-  const id = (await cookies()).get(USER_COOKIE)?.value;
+  const id = verifyUserCookie((await cookies()).get(USER_COOKIE)?.value);
   if (!id) return null;
   const u = await d.get("employees", id);
   return u?.active ? u : null;

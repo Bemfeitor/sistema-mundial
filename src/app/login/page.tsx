@@ -21,7 +21,9 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
         </div>
         {erro && (
           <div className="mb-4">
-            <Notice tone="red">{erro === "credenciais" ? "E-mail ou senha inválidos." : "Usuário inválido."}</Notice>
+            <Notice tone="red">
+              {erro === "credenciais" ? "E-mail ou senha inválidos." : erro === "codigo" ? "Código de acesso incorreto." : "Usuário inválido."}
+            </Notice>
           </div>
         )}
         {supa ? (
@@ -48,6 +50,11 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
                 ))}
               </Select>
             </Field>
+            {process.env.DEMO_ACCESS_CODE && (
+              <Field label="Código de acesso">
+                <Input name="access_code" type="password" required autoComplete="off" />
+              </Field>
+            )}
             <Button className="w-full">Entrar</Button>
           </form>
         )}
