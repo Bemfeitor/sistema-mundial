@@ -40,3 +40,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 !.env.example
+
+# deploy (gerados no servidor)
+.env.production
+docker-compose.prod.yml
+Caddyfile
