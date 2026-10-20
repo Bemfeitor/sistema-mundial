@@ -309,6 +309,39 @@ export interface Opportunity extends Base {
   status: "nova" | "em_contato" | "agendado" | "convertida" | "perdida";
   next_contact_at?: string | null;
   note?: string | null;
+  /** Campos de reativação (Atendimento Guiado) — só para kind "reativacao". */
+  reativacao?: Reativacao | null;
+}
+
+export const ATTENDANCE_STAGES = [
+  "nao_iniciado",
+  "aguardando_resposta",
+  "cliente_respondeu",
+  "em_atendimento",
+  "vai_pensar",
+  "visita_combinada",
+  "aguardando_consulta",
+  "venda_concluida",
+  "encerrado",
+  "encerrado_sem_resposta",
+  "nao_quer_mensagens",
+] as const;
+export type AttendanceStage = (typeof ATTENDANCE_STAGES)[number];
+
+export const RESPONSE_CLASSES = ["tudo_bem", "dificuldade_visual", "quer_trocar", "outra"] as const;
+export type ResponseClass = (typeof RESPONSE_CLASSES)[number];
+
+export interface Reativacao {
+  years_since_purchase: 1 | 2 | 3 | 4; // 4 = "4 anos ou mais"
+  original_seller?: string | null; // vendedor que veio da planilha
+  attendance: AttendanceStage;
+  response_class?: ResponseClass | null;
+  flag?: "sem_contato" | "ja_houve_contato" | "retorno_pendente" | "nao_receber" | "repetido" | null;
+  first_contact_at?: string | null;
+  last_sent_at?: string | null;
+  follow_up_at?: string | null;
+  send_history: { at: string; employee_id?: string | null; employee_name: string; store_id: string; kind: "contato" | "retorno" }[];
+  import_batch?: string | null;
 }
 
 export interface Message extends Base {

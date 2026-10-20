@@ -218,6 +218,30 @@ export function buildSeed() {
     { id: uid("llll0000", 1), created_at, customer_id: customers[6].id, store_id: L1, owner_id: employees[2].id, kind: "cashback", status: "nova", next_contact_at: ymd(day(0)), note: "Cashback disponível — convidar para conhecer coleção" },
     { id: uid("llll0000", 2), created_at, customer_id: customers[11].id, store_id: L2, owner_id: employees[4].id, kind: "reexame", status: "em_contato", next_contact_at: ymd(day(1)), note: "Receita vencendo — agendar exame" },
     { id: uid("llll0000", 3), created_at, customer_id: customers[3].id, store_id: L1, owner_id: employees[3].id, kind: "orcamento", status: "nova", next_contact_at: ymd(day(2)), note: "Orçou multifocal digital, ficou de pensar" },
+    // Reativação (Atendimento Guiado): clientes antigos importados de planilha
+    ...([
+      [16, 2, "nao_iniciado", "nova", "sem_contato", null, null],
+      [17, 4, "aguardando_resposta", "em_contato", "sem_contato", -3, null],
+      [18, 1, "cliente_respondeu", "em_contato", "sem_contato", -5, "tudo_bem"],
+      [19, 3, "visita_combinada", "agendado", "ja_houve_contato", -4, "quer_trocar"],
+      [20, 2, "venda_concluida", "convertida", "sem_contato", -12, "dificuldade_visual"],
+      [21, 4, "aguardando_resposta", "em_contato", "sem_contato", -1, null],
+      [22, 2, "nao_iniciado", "nova", "retorno_pendente", null, null],
+    ] as const).map(([ci, years, attendance, status, flag, sentDays, resp], i): T.Opportunity => {
+      const c = customers[ci];
+      const sentAt = sentDays == null ? null : iso(day(sentDays, 10));
+      return {
+        id: uid("llll0000", 10 + i), created_at: iso(day(-14)), customer_id: c.id, store_id: c.store_id,
+        owner_id: (sellers.find((s) => s.store_id === c.store_id) ?? sellers[0]).id, kind: "reativacao", status,
+        next_contact_at: flag === "retorno_pendente" ? ymd(day(2)) : null, note: "Importado da planilha de clientes 2022–2024",
+        reativacao: {
+          years_since_purchase: years, original_seller: i % 2 ? "Suelen (ex-vendedora)" : null, attendance,
+          response_class: resp, flag, first_contact_at: sentAt, last_sent_at: sentAt, follow_up_at: null,
+          send_history: sentAt ? [{ at: sentAt, employee_id: sellers[0].id, employee_name: sellers[0].name, store_id: c.store_id, kind: "contato" }] : [],
+          import_batch: "lote-demo-1",
+        },
+      };
+    }),
   ];
 
   const messages: T.Message[] = [

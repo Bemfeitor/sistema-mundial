@@ -8,6 +8,20 @@ export interface Modelo {
 
 export const MODELOS: Modelo[] = [
   {
+    id: "reativacao_primeiro_contato",
+    nome: "Reativação — primeiro contato",
+    canal: "whatsapp",
+    texto:
+      "Oi, {nome}! Tudo bem? 😊\n\nAqui é {vendedor}, da Ótica Mundial — {loja}. Queria saber como você está e como seus óculos estão atendendo no dia a dia.\n\nEstá enxergando bem para leitura, celular e direção? Se tiver percebido alguma mudança ou desconforto, me conte. Estou por aqui para ajudar. 💙",
+  },
+  {
+    id: "reativacao_retorno",
+    nome: "Reativação — retorno (48 h sem resposta)",
+    canal: "whatsapp",
+    texto:
+      "Oi, {nome}! Tudo bem? 😊\n\nAqui é {vendedor}, da Ótica Mundial — {loja}. Passando para saber como você está e se seus óculos continuam confortáveis no dia a dia.\n\nSe quiser conversar ou precisar de um ajuste, estou por aqui. Conte conosco! 💙",
+  },
+  {
     id: "cashback_disponivel",
     nome: "Cashback disponível",
     canal: "whatsapp",

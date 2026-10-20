@@ -35,6 +35,7 @@ export const NAV: NavGroup[] = [
       { href: "/clientes", label: "Clientes", icon: "Users", perm: "clientes" },
       { href: "/fidelidade", label: "Fidelidade e cashback", icon: "Gift", perm: "fidelidade" },
       { href: "/crm", label: "CRM", icon: "Target", perm: "crm" },
+      { href: "/crm/reativacao", label: "Reativação (WhatsApp)", icon: "PhoneCall", perm: "crm" },
       { href: "/mensagens", label: "Mensagens", icon: "MessageCircle", perm: "crm" },
       { href: "/agenda", label: "Agenda de exames", icon: "CalendarDays", perm: "clientes" },
     ],

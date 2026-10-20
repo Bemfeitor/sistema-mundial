@@ -303,7 +303,9 @@ create table public.opportunities (
   kind text not null check (kind in ('pos_venda','orcamento','aniversario','reexame','cashback','reativacao','indicacao')),
   status text not null default 'nova' check (status in ('nova','em_contato','agendado','convertida','perdida')),
   next_contact_at date,
-  note text
+  note text,
+  -- reativação (Atendimento Guiado): years_since_purchase, attendance, send_history[] etc.
+  reativacao jsonb
 );
 create index opportunities_store_id_idx on public.opportunities(store_id);
 create index opportunities_customer_id_idx on public.opportunities(customer_id);
